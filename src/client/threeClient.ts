@@ -22,6 +22,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 // @ts-ignore
 import Stats from 'three/examples/jsm/libs/stats.module';
 import { GUI } from 'dat.gui';
+import { setupDragDrop } from './drag_target';
 
 export const helloCube = (canvas: any) => {
   const renderer = new WebGLRenderer({
@@ -132,6 +133,11 @@ export const helloCube = (canvas: any) => {
       renderer.setSize(width, height);
     },
     false
+  );
+  setupDragDrop(
+    'holder',
+    'hover',
+    (_file: File, _event: ProgressEvent<FileReader>) => {}
   );
 
   let previousTimeStamp: number | undefined;
