@@ -1,3 +1,4 @@
+import type { Texture } from 'three';
 import {
   AmbientLight,
   AxesHelper,
@@ -21,6 +22,7 @@ import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment
 import Stats from 'three/examples/jsm/libs/stats.module';
 import { GUI } from 'dat.gui';
 import { setupDragDrop } from './drag_target';
+import { loadEnvironmentTexture } from './environment';
 
 export const helloCube = (canvas: any) => {
   const renderer = new WebGLRenderer({
@@ -121,6 +123,13 @@ export const helloCube = (canvas: any) => {
     .add(uiProperties, 'light transform control')
     .onChange((value: any) => (lightTransformControl.visible = value));
 
+  const setEnvironmentMap = (texture: Texture, _textureData: any) => {
+    const pmremEnvironmentTexture =
+      pmremGenerator.fromEquirectangular(texture).texture;
+    scene.environment = pmremEnvironmentTexture;
+    scene.background = pmremEnvironmentTexture;
+  };
+
   window.addEventListener(
     'resize',
     () => {
@@ -135,7 +144,11 @@ export const helloCube = (canvas: any) => {
   setupDragDrop(
     'holder',
     'hover',
-    (_file: File, _event: ProgressEvent<FileReader>) => {}
+    (file: File, event: ProgressEvent<FileReader>) => {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      loadEnvironmentTexture(file.name, event.target.result, setEnvironmentMap);
+    }
   );
 
   let previousTimeStamp: number | undefined;
