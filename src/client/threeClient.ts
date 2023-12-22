@@ -18,8 +18,6 @@ import {
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
 import Stats from 'three/examples/jsm/libs/stats.module';
 import { GUI } from 'dat.gui';
 import { setupDragDrop } from './drag_target';
@@ -157,7 +155,5 @@ export const helloCube = (canvas: any) => {
   requestAnimationFrame(animate);
 };
 
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore - three_canvas is defined in index.html
-// eslint-disable-next-line no-undef
-helloCube(three_canvas);
+const threeCanvas = document.getElementById('three_canvas');
+helloCube(threeCanvas);
