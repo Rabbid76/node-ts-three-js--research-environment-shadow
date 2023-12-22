@@ -8,6 +8,7 @@ import {
   GridHelper,
   Mesh,
   MeshPhysicalMaterial,
+  OrthographicCamera,
   PerspectiveCamera,
   PCFSoftShadowMap,
   PlaneGeometry,
@@ -23,6 +24,11 @@ import Stats from 'three/examples/jsm/libs/stats.module';
 import { GUI } from 'dat.gui';
 import { setupDragDrop } from './drag_target';
 import { loadEnvironmentTexture } from './environment';
+import {
+  EnvironmentMapDecodeMaterial,
+  LightSourceDetector,
+} from './light-source-detection';
+import { LightSourceDetectorDebug } from './light-source-detection-debug';
 
 export const helloCube = (canvas: any) => {
   const renderer = new WebGLRenderer({
@@ -109,9 +115,16 @@ export const helloCube = (canvas: any) => {
   meshTransformControl.visible = false;
   scene.add(meshTransformControl);
 
+  const parameters = {
+    debugOutput: 'off',
+  };
   const stats = new Stats();
   document.body.appendChild(stats.dom);
   const gui = new GUI();
+  gui.add<any>(parameters, 'debugOutput', {
+    'off ': 'off',
+    'light source detection': 'lightsourcedetection',
+  });
   const uiProperties = {
     'mesh transform control': meshTransformControl.visible,
     'light transform control': lightTransformControl.visible,
@@ -124,6 +137,7 @@ export const helloCube = (canvas: any) => {
     .onChange((value: any) => (lightTransformControl.visible = value));
 
   const setEnvironmentMap = (texture: Texture, _textureData: any) => {
+    lightSourceDebugScene = null;
     const pmremEnvironmentTexture =
       pmremGenerator.fromEquirectangular(texture).texture;
     scene.environment = pmremEnvironmentTexture;
@@ -163,9 +177,81 @@ export const helloCube = (canvas: any) => {
   };
 
   const render = () => {
-    renderer.render(scene, camera);
+    switch (parameters.debugOutput) {
+      default:
+      case 'off':
+        renderer.render(scene, camera);
+        break;
+      case 'lightsourcedetection':
+        renderLightSourceDetectionDebugScene(renderer, scene, camera.aspect);
+        break;
+    }
   };
   requestAnimationFrame(animate);
+};
+
+let lightSourceDebugScene: Scene | null = null;
+
+const detectLightSources = (
+  renderer: WebGLRenderer,
+  pmremTexture: Texture
+): LightSourceDetector => {
+  const lightSourceDetector = new LightSourceDetector();
+  lightSourceDetector.detectLightSources(renderer, pmremTexture);
+  return lightSourceDetector;
+};
+
+const createLightSourceDebugScene = (
+  renderer: WebGLRenderer,
+  scene: Scene,
+  maxNoOfLightSources?: number
+): Scene | null => {
+  const maxLightSources = maxNoOfLightSources ?? -1;
+  if (
+    lightSourceDebugScene !== null &&
+    maxLightSources ===
+      lightSourceDebugScene.userData.maximumNumberOfLightSources
+  ) {
+    return lightSourceDebugScene;
+  }
+  lightSourceDebugScene = new Scene();
+  const planeMaterial = new EnvironmentMapDecodeMaterial(true, false);
+  planeMaterial.setSourceTexture(scene.environment as Texture);
+  LightSourceDetectorDebug.createPlane(lightSourceDebugScene, planeMaterial);
+  const lightSourceDetector = detectLightSources(
+    renderer,
+    scene.environment as Texture
+  );
+  const lightSourceDetectorDebug = new LightSourceDetectorDebug(
+    lightSourceDetector
+  );
+  lightSourceDetectorDebug.createDebugScene(
+    lightSourceDebugScene,
+    maxLightSources
+  );
+  lightSourceDebugScene.userData.maximumNumberOfLightSources = maxLightSources;
+  return lightSourceDebugScene;
+};
+
+const renderLightSourceDetectionDebugScene = (
+  renderer: WebGLRenderer,
+  scene: Scene,
+  aspect: number
+) => {
+  const environmentCamera = new OrthographicCamera(
+    -1,
+    1,
+    1 / aspect,
+    -1 / aspect,
+    -1,
+    1
+  );
+  const environmentScene = createLightSourceDebugScene(renderer, scene, -1);
+  if (environmentScene === null) {
+    return;
+  }
+  environmentScene.background = new Color(0xffffff);
+  renderer.render(environmentScene, environmentCamera);
 };
 
 const threeCanvas = document.getElementById('three_canvas');
