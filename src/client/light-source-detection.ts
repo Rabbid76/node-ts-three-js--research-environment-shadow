@@ -565,6 +565,7 @@ export class LightSource {
   public position: Vector3 = new Vector3();
   public uv: Vector2 = new Vector2();
   public averageIntensity: number = 0;
+  public areaIntensity: number = 0;
   public maxIntensity: number = 0;
   public size: number = 0;
 
@@ -576,15 +577,16 @@ export class LightSource {
     luminanceFunction: (uv: Vector2) => number
   ) {
     this.position = new Vector3();
+    this.areaIntensity = 0;
     this.averageIntensity = 0;
     this.maxIntensity = 0;
     for (const lightSample of this.lightSamples) {
       this.position.add(lightSample.position);
       const luminanceValue = luminanceFunction(lightSample.uv);
-      this.averageIntensity += luminanceValue;
+      this.areaIntensity += luminanceValue;
       this.maxIntensity = Math.max(this.maxIntensity, luminanceValue);
     }
-    this.averageIntensity /= this.lightSamples.length;
+    this.averageIntensity = this.areaIntensity / this.lightSamples.length;
     this.position.normalize();
     this.uv = sphereToEquirectangular(this.position);
     let averageDistance = 0;

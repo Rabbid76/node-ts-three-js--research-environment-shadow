@@ -9,6 +9,7 @@ import {
   Color,
   DirectionalLight,
   DirectionalLightHelper,
+  Group,
   OrthographicCamera,
   PMREMGenerator,
   Scene,
@@ -17,6 +18,7 @@ import {
 
 export class EnvironmentShadow {
   public showEnvironment = true;
+  public showLightHelper = true;
   private _renderer: WebGLRenderer;
   private _pmremGenerator: PMREMGenerator;
   private _lightSourceDetector: LightSourceDetector;
@@ -26,9 +28,10 @@ export class EnvironmentShadow {
   private _detectorWidth: number = 1024;
   private _detectorHeight: number = 512;
   private _sampleThreshold: number = 0.9;
-  private _noOfSamples: number = 1500;
-  private _lightIntensityThreshold: number = 0.2;
+  private _noOfSamples: number = 3000;
+  private _lightIntensityThreshold: number = 0.01;
   private _lightDistanceScale: number = 5.0;
+  private _lightHelperGroup: Object3D | null = null;
 
   constructor(renderer: WebGLRenderer) {
     this._renderer = renderer;
@@ -81,6 +84,9 @@ export class EnvironmentShadow {
     scene.background = this.showEnvironment
       ? this._pmremEnvironmentTexture
       : this._backgroundColor;
+    if (this._lightHelperGroup !== null) {
+      this._lightHelperGroup.visible = this.showLightHelper;
+    }
   }
 
   private _removeLightSourcesFromScene(scene: Scene) {
@@ -100,14 +106,15 @@ export class EnvironmentShadow {
       lightSources.length > 0
         ? Math.max(
             ...lightSources.map(
-              (lightSource: LightSource) => lightSource.maxIntensity
+              (lightSource: LightSource) =>
+                lightSource.maxIntensity * lightSource.size
             )
           )
         : 1;
     const lightIntensityScale = 1 / maxIntensity;
     for (const lightSource of lightSources) {
-      console.log(lightSource.size);
-      const lightIntensity = lightSource.maxIntensity * lightIntensityScale;
+      const lightIntensity =
+        lightSource.maxIntensity * lightSource.size * lightIntensityScale;
       if (
         lightIntensity < this._lightIntensityThreshold ||
         lightSource.position.z < 0
@@ -127,16 +134,20 @@ export class EnvironmentShadow {
       directionalLight.updateMatrix();
       directionalLight.castShadow = true;
       scene.add(directionalLight);
+      this._lightHelperGroup ??= new Group();
+      scene.add(this._lightHelperGroup);
+      this._lightHelperGroup.visible = this.showLightHelper;
       const lightHelper = new DirectionalLightHelper(
         directionalLight,
-        lightIntensity
+        lightIntensity,
+        0xff0000
       );
       lightHelper.name = 'lightHelper';
-      scene.add(lightHelper);
+      this._lightHelperGroup.add(lightHelper);
     }
   }
 
-  renderLightSourceDetectionDebugScene(scene: Scene, aspect: number) {
+  public renderLightSourceDetectionDebugScene(scene: Scene, aspect: number) {
     const environmentCamera = new OrthographicCamera(
       -1,
       1,
@@ -145,7 +156,7 @@ export class EnvironmentShadow {
       -1,
       1
     );
-    const environmentScene = this._createLightSourceDebugScene(scene, -1);
+    const environmentScene = this._createLightSourceDebugScene(scene);
     if (environmentScene === null) {
       return;
     }
@@ -153,16 +164,8 @@ export class EnvironmentShadow {
     this._renderer.render(environmentScene, environmentCamera);
   }
 
-  private _createLightSourceDebugScene = (
-    scene: Scene,
-    maxNoOfLightSources?: number
-  ): Scene | null => {
-    const maxLightSources = maxNoOfLightSources ?? -1;
-    if (
-      this._lightSourceDebugScene !== null &&
-      maxLightSources ===
-        this._lightSourceDebugScene.userData.maximumNumberOfLightSources
-    ) {
+  private _createLightSourceDebugScene = (scene: Scene): Scene | null => {
+    if (this._lightSourceDebugScene !== null) {
       return this._lightSourceDebugScene;
     }
     this._lightSourceDebugScene = new Scene();
@@ -175,12 +178,7 @@ export class EnvironmentShadow {
     const lightSourceDetectorDebug = new LightSourceDetectorDebug(
       this._lightSourceDetector
     );
-    lightSourceDetectorDebug.createDebugScene(
-      this._lightSourceDebugScene,
-      maxLightSources
-    );
-    this._lightSourceDebugScene.userData.maximumNumberOfLightSources =
-      maxLightSources;
+    lightSourceDetectorDebug.createDebugScene(this._lightSourceDebugScene, -1);
     return this._lightSourceDebugScene;
   };
 }
